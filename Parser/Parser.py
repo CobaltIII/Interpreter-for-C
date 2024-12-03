@@ -1,0 +1,651 @@
+from typing import List, Optional
+from tokens import Token
+import unittest
+
+class Node:
+    def TokenLiteral(self) -> str:
+        pass
+
+    def String(self) -> str:
+        pass
+class Statement(Node):
+    def statementNode(self):
+        pass
+class Expression(Node):
+    def expressionNode(self):
+        pass
+class Program(Node):
+    def __init__(self):
+        self.Statements: List[Statement] = []
+
+    def TokenLiteral(self) -> str:
+        if len(self.Statements) > 0:
+            return self.Statements[0].TokenLiteral()
+        else:
+            return ""
+
+    def String(self) -> str:
+        out = []
+        for s in self.Statements:
+            out.append(s.String())
+        return "".join(out)
+# Statements
+class LetStatement(Statement):
+    def __init__(self, token: Token, name=None, value=None):
+        self.Token = token
+        self.Name = name
+        self.Value = value
+
+    def statementNode(self):
+        pass
+
+    def TokenLiteral(self) -> str:
+        return self.Token.literal
+
+    def String(self) -> str:
+        out = []
+        out.append(f"{self.TokenLiteral()} {self.Name.String()} = ")
+        if self.Value:
+            out.append(self.Value.String())
+        out.append(";")
+        return "".join(out)
+class ReturnStatement(Statement):
+    def __init__(self, token: Token, return_value=None):
+        self.Token = token
+        self.ReturnValue = return_value
+
+    def statementNode(self):
+        pass
+
+    def TokenLiteral(self) -> str:
+        return self.Token.literal
+
+    def String(self) -> str:
+        out = [f"{self.TokenLiteral()} "]
+        if self.ReturnValue:
+            out.append(self.ReturnValue.String())
+        out.append(";")
+        return "".join(out)
+class ExpressionStatement(Statement):
+    def __init__(self, token: Token, expression=None):
+        self.Token = token
+        self.Expression = expression
+
+    def statementNode(self):
+        pass
+
+    def TokenLiteral(self) -> str:
+        return self.Token.literal
+
+    def String(self) -> str:
+        if self.Expression:
+            return self.Expression.String()
+        return ""
+class BlockStatement(Statement):
+    def __init__(self, token: Token):
+        self.Token = token
+        self.Statements: List[Statement] = []
+
+    def statementNode(self):
+        pass
+
+    def TokenLiteral(self) -> str:
+        return self.Token.literal
+
+    def String(self) -> str:
+        out = []
+        for s in self.Statements:
+            out.append(s.String())
+        return "".join(out)
+# Expressions
+class Identifier(Expression):
+    def __init__(self, token: Token, value: str):
+        self.Token = token
+        self.Value = value
+
+    def expressionNode(self):
+        pass
+
+    def TokenLiteral(self) -> str:
+        return self.Token.literal
+
+    def String(self) -> str:
+        return self.Value
+class Boolean(Expression):
+    def __init__(self, token: Token, value: bool):
+        self.Token = token
+        self.Value = value
+
+    def expressionNode(self):
+        pass
+
+    def TokenLiteral(self) -> str:
+        return self.Token.literal
+
+    def String(self) -> str:
+        return self.Token.literal
+class IntegerLiteral(Expression):
+    def __init__(self, token: Token, value: int):
+        self.Token = token
+        self.Value = value
+
+    def expressionNode(self):
+        pass
+
+    def TokenLiteral(self) -> str:
+        return self.Token.literal
+
+    def String(self) -> str:
+        return self.Token.literal
+class PrefixExpression(Expression):
+    def __init__(self, token: Token, operator: str, right: Expression):
+        self.Token = token
+        self.Operator = operator
+        self.Right = right
+
+    def expressionNode(self):
+        pass
+
+    def TokenLiteral(self) -> str:
+        return self.Token.literal
+
+    def String(self) -> str:
+        return f"({self.Operator}{self.Right.String()})"
+class InfixExpression(Expression):
+    def __init__(self, token: Token, left: Expression, operator: str, right: Expression):
+        self.Token = token
+        self.Left = left
+        self.Operator = operator
+        self.Right = right
+
+    def expressionNode(self):
+        pass
+
+    def TokenLiteral(self) -> str:
+        return self.Token.literal
+
+    def String(self) -> str:
+        return f"({self.Left.String()} {self.Operator} {self.Right.String()})"
+class IfExpression(Expression):
+    def __init__(self, token: Token, condition: Expression, consequence: BlockStatement, alternative: Optional[BlockStatement]):
+        self.Token = token
+        self.Condition = condition
+        self.Consequence = consequence
+        self.Alternative = alternative
+
+    def expressionNode(self):
+        pass
+
+    def TokenLiteral(self) -> str:
+        return self.Token.literal
+
+    def String(self) -> str:
+        out = [f"if{self.Condition.String()} {self.Consequence.String()}"]
+        if self.Alternative:
+            out.append(f"else {self.Alternative.String()}")
+        return "".join(out)
+class FunctionLiteral(Expression):
+    def __init__(self, token: Token, parameters: List[Identifier], body: BlockStatement):
+        self.Token = token
+        self.Parameters = parameters
+        self.Body = body
+
+    def expressionNode(self):
+        pass
+
+    def TokenLiteral(self) -> str:
+        return self.Token.literal
+
+    def String(self) -> str:
+        params = [p.String() for p in self.Parameters]
+        return f"{self.TokenLiteral()}({', '.join(params)}) {self.Body.String()}"
+class CallExpression(Expression):
+    def __init__(self, token: Token, function: Expression, arguments: List[Expression]):
+        self.Token = token
+        self.Function = function
+        self.Arguments = arguments
+
+    def expressionNode(self):
+        pass
+
+    def TokenLiteral(self) -> str:
+        return self.Token.literal
+
+    def String(self) -> str:
+        args = [arg.String() for arg in self.Arguments]
+        return f"{self.Function.String()}({', '.join(args)})"
+'''
+class TestStringMethod(unittest.TestCase):
+    def test_string(self):
+        program = Program()
+        program.Statements = [
+            LetStatement(
+                token = Token("LET", "let"),
+                name=Identifier(
+                    token=Token("IDENT", "five"),
+                    value="five",
+                ),
+                value=Identifier(
+                    token=Token("IDENT", "5"),
+                    value="5",
+                ),
+            )
+        ]
+
+        expected = "let five = 5;"
+        self.assertEqual(program.String(), expected, f"program.String() wrong. got={program.String()}")
+        print("IT WORKEDDDDD")
+'''
+
+
+########################################################################################################################################################
+
+from tokens import TokenType
+
+LOWEST = 1
+EQUALS = 2        # ==
+LESSGREATER = 3   # > or <
+SUM = 4           # +
+PRODUCT = 5       # *
+PREFIX = 6        # -X or !X
+CALL = 7          # myFunction(X)
+
+# Token precedences
+precedences = {
+    TokenType.EQ: EQUALS,
+    TokenType.NOT_EQ: EQUALS,
+    TokenType.LT: LESSGREATER,
+    TokenType.GT: LESSGREATER,
+    TokenType.PLUS: SUM,
+    TokenType.MINUS: SUM,
+    TokenType.SLASH: PRODUCT,
+    TokenType.ASTERISK: PRODUCT,
+    TokenType.LPAREN: CALL,
+}
+
+class Parser : 
+    def registerPrefix(self, tokenType, fn):
+        self.prefixParseFns[tokenType] = fn
+
+    def registerInfix(self, tokenType, fn):
+        self.infixParseFns[tokenType] = fn
+
+    def __init__(self , lexer_instance):
+        self.l = lexer_instance
+        self.errors = []
+
+        self.curToken = None
+        self.peekToken = None
+
+        self.prefixParseFns = {}
+        self.infixParseFns = {}
+
+        self.registerPrefix(TokenType.IDENT, self.parseIdentifier)
+        self.registerPrefix(TokenType.INT, self.parseIntegerLiteral)
+        self.registerPrefix(TokenType.BANG, self.parsePrefixExpression)
+        self.registerPrefix(TokenType.MINUS, self.parsePrefixExpression)
+        self.registerPrefix(TokenType.TRUE, self.parseBoolean)
+        self.registerPrefix(TokenType.FALSE, self.parseBoolean)
+        self.registerPrefix(TokenType.LPAREN, self.parseGroupedExpression)
+        self.registerPrefix(TokenType.IF, self.parseIfExpression)
+        self.registerPrefix(TokenType.FUNCTION, self.parseFunctionLiteral)
+
+        self.registerInfix(TokenType.PLUS, self.parseInfixExpression)
+        self.registerInfix(TokenType.MINUS, self.parseInfixExpression)
+        self.registerInfix(TokenType.SLASH, self.parseInfixExpression)
+        self.registerInfix(TokenType.ASTERISK, self.parseInfixExpression)
+        self.registerInfix(TokenType.EQ, self.parseInfixExpression)
+        self.registerInfix(TokenType.NOT_EQ, self.parseInfixExpression)
+        self.registerInfix(TokenType.LT, self.parseInfixExpression)
+        self.registerInfix(TokenType.GT, self.parseInfixExpression)
+        self.registerInfix(TokenType.LPAREN, self.parseCallExpression)
+
+        self.nextToken()
+        self.nextToken()
+
+    def nextToken(self):
+        self.curToken = self.peekToken
+        self.peekToken = self.l.next_token()
+    
+    def curTokenIs(self , t):
+        return self.curToken.type == t
+    
+    def peekTokenIs(self, t):
+        return self.peekToken.type == t
+    
+    def expectPeek(self, t):
+        if self.peekTokenIs(t):
+            self.nextToken()
+            return True
+        else:
+            self.peekError(t)
+            return False
+    
+    def Errors(self):
+        return self.errors
+    
+    def peekError(self, t):
+        msg = f"expected next token to be {t}, got {self.peekToken.type} instead"
+        self.errors.append(msg)
+
+    def noPrefixParseFnError(self, t):
+        msg = f"no prefix parse function for {t} found"
+        self.errors.append(msg)
+    
+    def ParseProgram(self):
+        program = Program()
+        program.Statements = []
+
+        while not self.curTokenIs(TokenType.EOF):
+            stmt = self.parseStatement()
+            if stmt is not None:
+                program.Statements.append(stmt)
+            self.nextToken()
+
+        return program
+    
+    def parseStatement(self):
+        if self.curToken.type == TokenType.LET:
+            return self.parseLetStatement()
+        elif self.curToken.type == TokenType.RETURN:
+            return self.parseReturnStatement()
+        else:
+            return self.parseExpressionStatement()
+    
+    def parseLetStatement(self):
+        stmt =  LetStatement(token=self.curToken)
+
+        if not self.expectPeek(TokenType.IDENT):
+            return None
+
+        stmt.Name =  Identifier(token=self.curToken, value=self.curToken.literal)
+
+        if not self.expectPeek(TokenType.ASSIGN):
+            return None
+
+        self.nextToken()
+
+        stmt.Value = self.parseExpression(LOWEST)
+
+        if self.peekTokenIs(TokenType.SEMICOLON):
+            self.nextToken()
+
+        return stmt
+    
+    def parseReturnStatement(self):
+        stmt =  ReturnStatement(token=self.curToken)
+
+        self.nextToken()
+
+        stmt.ReturnValue = self.parseExpression(LOWEST)
+
+        if self.peekTokenIs(TokenType.SEMICOLON):
+            self.nextToken()
+
+        return stmt
+    
+    def parseExpressionStatement(self):
+        stmt =  ExpressionStatement(token=self.curToken)
+
+        stmt.Expression = self.parseExpression(LOWEST)
+
+        if self.peekTokenIs(TokenType.SEMICOLON):
+            self.nextToken()
+
+        return stmt
+    
+    def parseExpression(self, precedence):
+        prefix = self.prefixParseFns.get(self.curToken.type)
+        if prefix is None:
+            self.noPrefixParseFnError(self.curToken.type)
+            return None
+
+        leftExp = prefix()
+
+        while not self.peekTokenIs(TokenType.SEMICOLON) and precedence < self.peekPrecedence():
+            infix = self.infixParseFns.get(self.peekToken.type)
+            if infix is None:
+                return leftExp
+
+            self.nextToken()
+            leftExp = infix(leftExp)
+
+        return leftExp
+
+    def peekPrecedence(self):
+        return precedences.get(self.peekToken.type, LOWEST)
+
+    def curPrecedence(self):
+        return precedences.get(self.curToken.type, LOWEST)
+
+    def parseIdentifier(self):
+        return  Identifier(token=self.curToken, value=self.curToken.literal)
+
+    def parseIntegerLiteral(self):
+        try : 
+            lit =  IntegerLiteral(token=self.curToken , value = int(self.curToken.literal))
+        except ValueError:
+            msg = f"could not parse {self.curToken.literal} as integer"
+            self.errors.append(msg)
+            return None
+        return lit
+
+    def parsePrefixExpression(self):
+        expression =  PrefixExpression(
+            Token =self.curToken,
+            Operator=self.curToken.literal
+        )
+
+        self.nextToken()
+        expression.Right = self.parseExpression(PREFIX)
+
+        return expression
+
+    def parseInfixExpression(self, left):
+        expression =  InfixExpression(
+            Token =self.curToken,
+            Operator=self.curToken.literal,
+            Left=left
+        )
+
+        precedence = self.curPrecedence()
+        self.nextToken()
+        expression.Right = self.parseExpression(precedence)
+
+        return expression
+
+    def parseBoolean(self):
+        return  Boolean(
+            token=self.curToken,
+            value=self.curTokenIs(TokenType.TRUE)
+        )
+    
+    def parseGroupedExpression(self):
+        self.nextToken()
+        exp = self.parseExpression(LOWEST)
+
+        if not self.expectPeek(TokenType.RPAREN):
+            return None
+
+        return exp
+
+    def parseIfExpression(self):
+        expression =  IfExpression(token=self.curToken)
+
+        if not self.expectPeek(TokenType.LPAREN):
+            return None
+
+        self.nextToken()
+        expression.Condition = self.parseExpression(LOWEST)
+
+        if not self.expectPeek(TokenType.RPAREN):
+            return None
+
+        if not self.expectPeek(TokenType.LBRACE):
+            return None
+
+        expression.Consequence = self.parseBlockStatement()
+
+        if self.peekTokenIs(TokenType.ELSE):
+            self.nextToken()
+
+            if not self.expectPeek(TokenType.LBRACE):
+                return None
+
+            expression.Alternative = self.parseBlockStatement()
+
+        return expression
+
+    def parseBlockStatement(self):
+        block =  BlockStatement(token=self.curToken)
+        block.Statements = []
+
+        self.nextToken()
+
+        while not self.curTokenIs(TokenType.RBRACE) and not self.curTokenIs(TokenType.EOF):
+            stmt = self.parseStatement()
+            if stmt is not None:
+                block.Statements.append(stmt)
+            self.nextToken()
+
+        return block
+
+    def parseFunctionLiteral(self):
+        lit =  FunctionLiteral(token=self.curToken)
+
+        if not self.expectPeek(TokenType.LPAREN):
+            return None
+
+        lit.Parameters = self.parseFunctionParameters()
+
+        if not self.expectPeek(TokenType.LBRACE):
+            return None
+
+        lit.Body = self.parseBlockStatement()
+
+        return lit
+
+    def parseFunctionParameters(self):
+        identifiers = []
+
+        if self.peekTokenIs(TokenType.RPAREN):
+            self.nextToken()
+            return identifiers
+
+        self.nextToken()
+        ident =  Identifier(token=self.curToken, value=self.curToken.literal)
+        identifiers.append(ident)
+
+        while self.peekTokenIs(TokenType.COMMA):
+            self.nextToken()
+            self.nextToken()
+            ident =  Identifier(token=self.curToken, value=self.curToken.literal)
+            identifiers.append(ident)
+
+        if not self.expectPeek(TokenType.RPAREN):
+            return None
+
+        return identifiers
+    
+    def parseCallExpression(self, function):
+        exp =  CallExpression(token=self.curToken, Function=function)
+        exp.Arguments = self.parseCallArguments()
+        return exp
+    
+    def parseCallArguments(self):
+        args = []
+
+        if self.peekTokenIs(TokenType.RPAREN):
+            self.nextToken()
+            return args
+
+        self.nextToken()
+        args.append(self.parseExpression(LOWEST))
+
+        while self.peekTokenIs(TokenType.COMMA):
+            self.nextToken()
+            self.nextToken()
+            args.append(self.parseExpression(LOWEST))
+
+        if not self.expectPeek(TokenType.RPAREN):
+            return None
+
+        return args
+
+###########################################################################################################################################################################
+
+import unittest
+from tokens import Lexer
+
+def check_parser_errors(parser):
+    errors = parser.errors
+    if len(errors) > 0:
+        raise AssertionError(f"Parser had {len(errors)} errors: {errors}")
+
+def test_let_statement(stmt, name):
+    assert stmt.TokenLiteral() == "let", f"s.TokenLiteral not 'let'. got={stmt.TokenLiteral()}"
+    assert isinstance(stmt, LetStatement), f"s not LetStatement. got={type(stmt)}"
+    assert stmt.Name.Value == name, f"letStmt.Name.Value not '{name}'. got={stmt.Name.Value}"
+    assert stmt.Name.TokenLiteral() == name, f"s.Name not '{name}'. got={stmt.Name.TokenLiteral()}"
+    return True
+
+def test_literal_expression(exp, expected):
+    if isinstance(expected, bool):
+        return test_boolean_literal(exp, expected)
+    elif isinstance(expected, str):
+        return test_identifier(exp, expected)
+    elif isinstance(expected, int):
+        return test_integer_literal(exp, expected)
+    else:
+        #fail(f"Type of exp not handled. got={type(exp)}")
+        return False
+
+def test_integer_literal(exp, value):
+    assert isinstance(exp, IntegerLiteral), f"exp is not IntegerLiteral. got={type(exp)}"
+    assert exp.Value == value, f"exp.Value not {value}. got={exp.Value}"
+    assert exp.TokenLiteral() == str(value), f"exp.TokenLiteral() not {value}. got={exp.TokenLiteral()}"
+    return True
+
+def test_identifier(exp, value):
+    assert isinstance(exp, Identifier), f"exp is not Identifier. got={type(exp)}"
+    assert exp.Value == value, f"ident.Value not {value}. got={exp.Value}"
+    assert exp.TokenLiteral() == value, f"ident.TokenLiteral not {value}. got={exp.TokenLiteral()}"
+    return True
+
+def test_boolean_literal(exp, value):
+    assert isinstance(exp, Boolean) , f"exp not Boolean. got={type(exp)}"
+    assert exp.Value == value, f"bo.Value not {value}. got={exp.Value}"
+    assert exp.TokenLiteral() == str(value).lower(), f"bo.TokenLiteral not {value}. got={exp.TokenLiteral()}"
+    return True
+
+class ParserTest(unittest.TestCase):
+
+    def test_let_statements(self):
+        tests = [
+            {"input": "let x = 5;", "expected_identifier": "x", "expected_value": 5},
+            {"input": "let y = true;", "expected_identifier": "y", "expected_value": True},
+            {"input": "let foobar = y;", "expected_identifier": "foobar", "expected_value": "y"}
+        ]
+        for tt in tests:
+            lexer = Lexer(tt["input"])
+            parser = Parser(lexer)
+            program = parser.ParseProgram()
+            check_parser_errors(parser)
+
+            self.assertEqual(len(program.Statements), 1, f"Program should have 1 statement, got {len(program.Statements)}")
+
+            stmt = program.Statements[0]
+            self.assertTrue(test_let_statement(stmt, tt["expected_identifier"]))
+
+            val = stmt.Value
+            self.assertTrue(test_literal_expression(val, tt["expected_value"]))
+
+    
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+
+

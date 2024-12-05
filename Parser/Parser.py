@@ -547,8 +547,7 @@ class Parser :
         return identifiers
     
     def parseCallExpression(self, function):
-        exp =  CallExpression(token=self.curToken, Function=function)
-        exp.Arguments = self.parseCallArguments()
+        exp =  CallExpression(token=self.curToken, function=function, arguments=self.parseCallArguments())
         return exp
     
     def parseCallArguments(self):
@@ -626,6 +625,8 @@ def test_infix_expression(exp, left , operator , right):
     if not test_literal_expression(exp.Right , right):
         return False
     return True
+
+
 
 class ParserTest(unittest.TestCase):
 
@@ -765,10 +766,70 @@ class ParserTest(unittest.TestCase):
             self.assertTrue(test_infix_expression(stmt.Expression , tt["leftValue"] , tt["operator"] , tt["rightValue"]))
 
     def test_operator_precedence_parsing(self):
+        tests = [
+            {"input" : "-a * b" , "expected" : "((-a) * b)"},
+            {"input" : "!-a" , "expected" : "(!(-a))"},
+            {"input" : "a + b + c" , "expected" : "((a + b) + c)"},
+            {"input" : "a + b - c" , "expected" : "((a + b) - c)"},
+            {"input" : "a * b * c" , "expected" : "((a * b) * c)"},
+            {"input" : "a * b / c" , "expected" : "((a * b) / c)"},
+            {"input" : "a + b / c" , "expected" : "(a + (b / c))"},
+            {"input" : "a + b * c + d / e - f" , "expected" : "(((a + (b * c)) + (d / e)) - f)"},
+            {"input" : "3 + 4; -5 * 5" , "expected" : "(3 + 4)((-5) * 5)"},
+            {"input" : "5 > 4 == 3 < 4" , "expected" : "((5 > 4) == (3 < 4))"},
+            {"input" : "5 < 4 != 3 > 4" , "expected" : "((5 < 4) != (3 > 4))"},
+            {"input" : "3 + 4 * 5 == 3 * 1 + 4 * 5" , "expected" : "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"},
+            {"input" : "true" , "expected" : "true"},
+            {"input" : "false" , "expected" : "false"},
+            {"input" : "3 > 5 == false", "expected" : "((3 > 5) == false)"},
+            {"input" : "3 < 5 == true" , "expected" : "((3 < 5) == true)"},
+            {"input" : "1 + (2 + 3) + 4" , "expected" : "((1 + (2 + 3)) + 4)"},
+            {"input" : "(5 + 5) * 2" , "expected" : "((5 + 5) * 2)"},
+            {"input" : "2 / (5 + 5)" , "expected" : "(2 / (5 + 5))"},
+            {"input" : "(5 + 5) * 2 * (5 + 5)" , "expected" : "(((5 + 5) * 2) * (5 + 5))"},
+            {"input" : "-(5 + 5)" , "expected" : "(-(5 + 5))"},
+            {"input" : "!(true == true)" , "expected" : "(!(true == true))"},
+            {"input" : "a + add(b * c) + d" , "expected" : "((a + add((b * c))) + d)"},
+            {"input" : "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))" , "expected" : "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))"},
+            {"input" : "add(a + b + c * d / f + g)" , "expected" : "add((((a + b) + ((c * d) / f)) + g))"}
+        ]
+
+        for tt in tests:
+            lexer = Lexer(tt["input"])
+            parser = Parser(lexer)
+            program = parser.ParseProgram()
+            check_parser_errors(parser)
+
+            #self.assertEqual(len(program.Statements), 1, f"program has not enough Statements. got={len(program.Statements)} , statement is = {tt['input']}")
+            #special as we try to test the effect of ; as well, input = "3 + 4; -5 * 5"
+
+            actual = program.String()
+            if actual != tt["expected"]:
+                self.fail(msg=f"expected = {tt["expected"]} , got = {actual}")
+            
+    def test_boolean_expression(self):
+        tests = [
+            {"input" : "true" , "expectedBoolean" : True},
+            {"input" : "false" , "expectedBoolean" : False}
+        ]
+
+        for tt in tests:
+            lexer = Lexer(tt["input"])
+            parser = Parser(lexer)
+            program = parser.ParseProgram()
+            check_parser_errors(parser)
+
+            self.assertEqual(len(program.Statements), 1, f"program has not enough Statements. got={len(program.Statements)}")
+            
+            stmt = program.Statements[0]
+            self.assertIsInstance(stmt, ExpressionStatement, f"program.Statements[0] is not ExpressionStatement. got={type(stmt)}")
+            
+            boolean = stmt.Expression
+            self.assertIsInstance(boolean, Boolean, f"exp not Boolean. got={type(boolean)}")
+            self.assertEqual(boolean.Value, tt["expectedBoolean"], f"boolean.Value not {tt['expectedBoolean']}. got={boolean.Value}")
+
+    def test_if_else_expression(self):
         pass
-
-
-
 
 
 

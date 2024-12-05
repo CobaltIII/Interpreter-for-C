@@ -373,7 +373,7 @@ class Parser :
         return stmt
     
     def parseReturnStatement(self):
-        stmt =  ReturnStatement(token=self.curToken)
+        stmt = ReturnStatement(token=self.curToken)
 
         self.nextToken()
 
@@ -399,7 +399,6 @@ class Parser :
         if prefix is None:
             self.noPrefixParseFnError(self.curToken.type)
             return None
-
         leftExp = prefix()
 
         while not self.peekTokenIs(TokenType.SEMICOLON) and precedence < self.peekPrecedence():
@@ -431,26 +430,26 @@ class Parser :
         return lit
 
     def parsePrefixExpression(self):
-        expression =  PrefixExpression(
-            Token =self.curToken,
-            Operator=self.curToken.literal
-        )
-
+        x = self.curToken
         self.nextToken()
-        expression.Right = self.parseExpression(PREFIX)
+        expression =  PrefixExpression(
+            token =x,
+            operator=x.literal,
+            right=self.parseExpression(PREFIX)
+        )
 
         return expression
 
     def parseInfixExpression(self, left):
-        expression =  InfixExpression(
-            Token =self.curToken,
-            Operator=self.curToken.literal,
-            Left=left
-        )
-
+        x = self.curToken
         precedence = self.curPrecedence()
         self.nextToken()
-        expression.Right = self.parseExpression(precedence)
+        expression =  InfixExpression(
+            token =x,
+            operator=x.literal,
+            left=left,
+            right=self.parseExpression(precedence)
+        )
 
         return expression
 
@@ -618,6 +617,16 @@ def test_boolean_literal(exp, value):
     assert exp.TokenLiteral() == str(value).lower(), f"bo.TokenLiteral not {value}. got={exp.TokenLiteral()}"
     return True
 
+def test_infix_expression(exp, left , operator , right):
+    assert isinstance(exp, InfixExpression) , f"exp not InfixExpression. got={type(exp)}"
+    if not test_literal_expression(exp.Left , left):
+        return False
+    if exp.Operator != operator:
+        return False
+    if not test_literal_expression(exp.Right , right):
+        return False
+    return True
+
 class ParserTest(unittest.TestCase):
 
     def test_let_statements(self):
@@ -640,7 +649,131 @@ class ParserTest(unittest.TestCase):
             val = stmt.Value
             self.assertTrue(test_literal_expression(val, tt["expected_value"]))
 
-    
+    def test_return_statements(self):
+        tests = [
+            {"input" : "return 5;" , "expected_value" : 5},
+            {"input" : "return true;" , "expected_value" : True},
+            {"input" : "return foobar;" , "expected_value" : "foobar"},
+        ]
+
+        for tt in tests:
+            lexer = Lexer(tt["input"])
+            parser = Parser(lexer)
+            program = parser.ParseProgram()
+            check_parser_errors(parser)
+            self.assertEqual(len(program.Statements), 1, f"Program should have 1 statement, got {len(program.Statements)}")
+            stmt = program.Statements[0]
+            self.assertEqual(stmt.TokenLiteral(), "return", f"returnStmt.TokenLiteral not 'return', got={stmt.TokenLiteral()}")
+            self.assertTrue(test_literal_expression(stmt.ReturnValue, tt["expected_value"]))
+
+    def test_identifier_expression(self):
+        input = "foobar;"
+
+        lexer = Lexer(input)
+        parser = Parser(lexer)
+        program = parser.ParseProgram()
+
+        self.assertEqual(len(program.Statements), 1, f"program has not enough Statements. got={len(program.Statements)}")
+
+        stmt = program.Statements[0]
+        self.assertIsInstance(stmt, ExpressionStatement, f"program.Statements[0] is not ExpressionStatement. got={type(stmt)}")
+
+        ident = stmt.Expression
+        self.assertIsInstance(ident, Identifier, f"exp not Identifier. got={type(ident)}")
+
+        self.assertEqual(ident.Value, "foobar", f"ident.value not 'foobar'. got={ident.Value}")
+        self.assertEqual(ident.TokenLiteral(), "foobar", f"ident.TokenLiteral not 'foobar'. got={ident.TokenLiteral()}")
+
+    def test_integer_literal_expression(self):
+        input = "5;"
+        lexer = Lexer(input)
+        parser = Parser(lexer)
+        program = parser.ParseProgram()
+        check_parser_errors(parser)
+        self.assertEqual(len(program.Statements), 1, f"program has not enough Statements. got={len(program.Statements)}")
+        stmt = program.Statements[0]
+        self.assertIsInstance(stmt, ExpressionStatement, f"program.Statements[0] is not ExpressionStatement. got={type(stmt)}")
+
+        literal = stmt.Expression
+        self.assertIsInstance(literal, IntegerLiteral, f"exp not Identifier. got={type(literal)}")
+
+        self.assertEqual(literal.Value, 5, f"literal.value not 5. got={literal.Value}")
+        self.assertEqual(literal.TokenLiteral(), "5", f"literal.TokenLiteral not '5'. got={literal.TokenLiteral()}")
+
+    def test_parsing_prefix_expressions(self):
+        tests = [
+            {"input" : "!5;", "operator" : "!", "value" : 5},
+            {"input" : "-15;", "operator" : "-", "value" : 15},
+            {"input" : "!foobar;", "operator" : "!", "value" : "foobar"},
+            {"input" : "-foobar;", "operator" : "-", "value" : "foobar"},
+            {"input" : "!true;", "operator" : "!", "value" : True},
+            {"input" : "!false;", "operator" : "!", "value" : False}
+        ]
+
+        for tt in tests:
+            lexer = Lexer(tt["input"])
+            parser = Parser(lexer)
+            program = parser.ParseProgram()
+            check_parser_errors(parser)
+
+            self.assertEqual(len(program.Statements), 1, f"program has not enough Statements. got={len(program.Statements)}")
+            
+            stmt = program.Statements[0]
+            self.assertIsInstance(stmt, ExpressionStatement, f"program.Statements[0] is not ExpressionStatement. got={type(stmt)}")
+
+            exp = stmt.Expression
+            self.assertIsInstance(exp, PrefixExpression, f"exp not PrefixExpression. got={type(exp)}")
+
+            self.assertEqual(exp.Operator , tt["operator"] , f"Operator is not {tt["operator"]} got {exp.Operator}")
+            self.assertTrue(test_literal_expression(exp.Right , tt["value"]))
+
+    def test_parsing_infix_expressions(self):
+        tests = [
+
+            {"input" : "5 + 5;" , "leftValue" : 5 , "operator" : "+" , "rightValue" : 5},
+            {"input" : "5 - 5;" , "leftValue" : 5 , "operator" : "-" , "rightValue" : 5},
+            {"input" : "5 * 5;" , "leftValue" : 5 , "operator" : "*" , "rightValue" : 5},
+            {"input" : "5 / 5;" , "leftValue" : 5 , "operator" : "/" , "rightValue" : 5},
+            {"input" : "5 > 5;" , "leftValue" : 5 , "operator" : ">" , "rightValue" : 5},
+            {"input" : "5 < 5;" , "leftValue" : 5 , "operator" : "<" , "rightValue" : 5},
+            {"input" : "5 == 5;" , "leftValue" : 5 , "operator" : "==" , "rightValue" : 5},
+            {"input" : "5 != 5;" , "leftValue" : 5 , "operator" : "!=" , "rightValue" : 5},
+            {"input" : "foobar + barfoo;" , "leftValue" : "foobar" , "operator" : "+" , "rightValue" : "barfoo"},
+            {"input" : "foobar - barfoo;" , "leftValue" : "foobar" , "operator" : "-" , "rightValue" : "barfoo"},
+            {"input" : "foobar * barfoo;" , "leftValue" : "foobar" , "operator" : "*" , "rightValue" : "barfoo"},
+            {"input" : "foobar / barfoo;" , "leftValue" : "foobar" , "operator" : "/" , "rightValue" : "barfoo"},
+            {"input" : "foobar > barfoo;" , "leftValue" : "foobar" , "operator" : ">" , "rightValue" : "barfoo"},
+            {"input" : "foobar < barfoo;" , "leftValue" : "foobar" , "operator" : "<" , "rightValue" : "barfoo"},
+            {"input" : "foobar == barfoo;" , "leftValue" : "foobar" , "operator" : "==" , "rightValue" : "barfoo"},
+            {"input" : "foobar != barfoo;" , "leftValue" : "foobar" , "operator" : "!=" , "rightValue" : "barfoo"},
+            {"input" : "true == true" , "leftValue" : True , "operator" : "==" , "rightValue" : True},
+            {"input" : "true != false" , "leftValue" : True , "operator" : "!=" , "rightValue" : False},
+            {"input" : "false == false" , "leftValue" : False , "operator" : "==" , "rightValue" : False}
+        ]
+
+        for tt in tests:
+            lexer = Lexer(tt["input"])
+            parser = Parser(lexer)
+            program = parser.ParseProgram()
+            check_parser_errors(parser)
+
+            self.assertEqual(len(program.Statements), 1, f"program has not enough Statements. got={len(program.Statements)}")
+            
+            stmt = program.Statements[0]
+            self.assertIsInstance(stmt, ExpressionStatement, f"program.Statements[0] is not ExpressionStatement. got={type(stmt)}")
+            
+            self.assertTrue(test_infix_expression(stmt.Expression , tt["leftValue"] , tt["operator"] , tt["rightValue"]))
+
+    def test_operator_precedence_parsing(self):
+        pass
+
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":

@@ -29,6 +29,7 @@ class Program(Node):
         for s in self.Statements:
             out.append(s.String())
         return "".join(out)
+
 # Statements
 class LetStatement(Statement):
     def __init__(self, token: Token, name=None, value=None):
@@ -185,6 +186,12 @@ class IfExpression(Expression):
             out.append(f"else {self.Alternative.String()}")
         return "".join(out)
 class FunctionLiteral(Expression):
+
+    def __init__(self):
+        self.Token = None
+        self.Parameters = None
+        self.Body = None
+
     def __init__(self, token: Token, parameters: List[Identifier], body: BlockStatement):
         self.Token = token
         self.Parameters = parameters
@@ -234,7 +241,7 @@ class TestStringMethod(unittest.TestCase):
 
         expected = "let five = 5;"
         self.assertEqual(program.String(), expected, f"program.String() wrong. got={program.String()}")
-        print("IT WORKEDDDDD")
+
 '''
 
 
@@ -385,13 +392,12 @@ class Parser :
         return stmt
     
     def parseExpressionStatement(self):
-        stmt =  ExpressionStatement(token=self.curToken)
+        stmt =  ExpressionStatement(token=self.curToken , expression=self.parseExpression(LOWEST))
 
-        stmt.Expression = self.parseExpression(LOWEST)
+        #stmt.Expression = self.parseExpression(LOWEST)
 
         if self.peekTokenIs(TokenType.SEMICOLON):
             self.nextToken()
-
         return stmt
     
     def parseExpression(self, precedence):
@@ -400,6 +406,7 @@ class Parser :
             self.noPrefixParseFnError(self.curToken.type)
             return None
         leftExp = prefix()
+        
 
         while not self.peekTokenIs(TokenType.SEMICOLON) and precedence < self.peekPrecedence():
             infix = self.infixParseFns.get(self.peekToken.type)
@@ -408,7 +415,7 @@ class Parser :
 
             self.nextToken()
             leftExp = infix(leftExp)
-
+        
         return leftExp
 
     def peekPrecedence(self):
@@ -469,21 +476,18 @@ class Parser :
         return exp
 
     def parseIfExpression(self):
-        expression =  IfExpression(token=self.curToken)
-
+        para_token = self.curToken
         if not self.expectPeek(TokenType.LPAREN):
             return None
-
         self.nextToken()
-        expression.Condition = self.parseExpression(LOWEST)
-
+        para_condition = self.parseExpression(LOWEST)
         if not self.expectPeek(TokenType.RPAREN):
             return None
 
         if not self.expectPeek(TokenType.LBRACE):
             return None
-
-        expression.Consequence = self.parseBlockStatement()
+        
+        para_consequence = self.parseBlockStatement()
 
         if self.peekTokenIs(TokenType.ELSE):
             self.nextToken()
@@ -491,8 +495,11 @@ class Parser :
             if not self.expectPeek(TokenType.LBRACE):
                 return None
 
-            expression.Alternative = self.parseBlockStatement()
-
+            para_alternative = self.parseBlockStatement()
+            expression = IfExpression(token=para_token , condition=para_condition , consequence=para_consequence , alternative=para_alternative)
+            return expression
+        
+        expression = IfExpression(token=para_token , condition=para_condition , consequence=para_consequence)
         return expression
 
     def parseBlockStatement(self):
@@ -510,18 +517,18 @@ class Parser :
         return block
 
     def parseFunctionLiteral(self):
-        lit =  FunctionLiteral(token=self.curToken)
-
+        para_token = self.curToken
         if not self.expectPeek(TokenType.LPAREN):
             return None
 
-        lit.Parameters = self.parseFunctionParameters()
+        para_Parameters = self.parseFunctionParameters()
 
         if not self.expectPeek(TokenType.LBRACE):
             return None
 
-        lit.Body = self.parseBlockStatement()
+        para_Body = self.parseBlockStatement()
 
+        lit =  FunctionLiteral(token=para_token , parameters=para_Parameters , body=para_Body)
         return lit
 
     def parseFunctionParameters(self):
@@ -829,17 +836,147 @@ class ParserTest(unittest.TestCase):
             self.assertEqual(boolean.Value, tt["expectedBoolean"], f"boolean.Value not {tt['expectedBoolean']}. got={boolean.Value}")
 
     def test_if_else_expression(self):
-        pass
+        input = 'if (x < y) {x} else {y}'
+        lexer = Lexer(input)
+        parser = Parser(lexer)
+        program = parser.ParseProgram()
+        check_parser_errors(parser)
+        self.assertEqual(len(program.Statements), 1, f"program has not enough Statements. got={len(program.Statements)}")
+        stmt = program.Statements[0]
+        self.assertIsInstance(stmt, ExpressionStatement, f"program.Statements[0] is not ExpressionStatement. got={type(stmt)}")
+        exp = stmt.Expression
+        self.assertIsInstance(exp, IfExpression, f"exp not IfExpression. got={type(exp)}")
+
+        if not test_infix_expression(exp.Condition , "x" , "<" , "y"):
+            self.fail("Condition failed")
+        
+        if (len(exp.Consequence.Statements) != 1):
+            self.fail(f"Consequence not single statement, got = {len(exp.Consequence.Statements)}")
+        
+        consequence = exp.Consequence.Statements[0]
+        self.assertIsInstance(consequence , ExpressionStatement , f"Consequence not an ExpressionStatement. ")
+
+        if not test_identifier(consequence.Expression , "x"):
+            self.fail(f"consequence identifier incorrect. got = {consequence.Expression}")
+        
+        if (len(exp.Alternative.Statements) != 1):
+            self.fail(f"Alternative not single statement, got = {len(exp.Alternative.Statements)}")
+        
+        alternative = exp.Alternative.Statements[0]
+        self.assertIsInstance(alternative , ExpressionStatement , f"Alternative not an ExpressionStatement. ")
+
+        if not test_identifier(alternative.Expression , "y"):
+            self.fail(f"alternative identifier incorrect. got = {alternative.Expression}")
+    
+    def test_function_literal_parsing(self):
+        input = 'fn(x ,  y ) {x + y;}'
+        lexer = Lexer(input)
+        parser = Parser(lexer)
+        program = parser.ParseProgram()
+
+        check_parser_errors(parser)
+        self.assertEqual(len(program.Statements), 1, f"program has not enough Statements. got={len(program.Statements)}")
+
+        stmt = program.Statements[0]
+        self.assertIsInstance(stmt, ExpressionStatement, f"program.Statements[0] is not ExpressionStatement. got={type(stmt)}")
+
+        function = stmt.Expression
+        self.assertIsInstance(function, FunctionLiteral, f"exp not FunctionLiteral. got={type(function)} , {function.String()}")
+
+        self.assertEqual(2 , len(function.Parameters) , f"function literal parameters wrong, got = {len(function.Parameters)}")
 
 
+        if not test_literal_expression(function.Parameters[0] , "x"):
+            self.fail()
+        if not test_literal_expression(function.Parameters[1] , "y"):
+            self.fail()
+        
+        self.assertEqual(1 , len(function.Body.Statements) , f"function body statements wrong, got = {len(function.Body.Statements)}")
 
+        body_statement = function.Body.Statements[0]
 
+        self.assertIsInstance(body_statement , ExpressionStatement , f"bosy is not ExpressionStatement type")
+        
+        if not test_infix_expression(body_statement.Expression , "x" , "+" , "y"):
+            self.fail()
+        
+    def test_function_parameter_parsing(self):
+        tests = [
+            {"input" : "fn() {};" , "expectedParameters" : []},
+            {"input" : "fn(x) {};" , "expectedParameters" : ["x"]},
+            {"input" : "fn(x,y,    z   ) {};" , "expectedParameters" : ["x" , "y" , "z"]}
+        ]
 
+        for tt in tests:
+            lexer = Lexer(tt["input"])
+            parser = Parser(lexer)
+            program = parser.ParseProgram()
+
+            check_parser_errors(parser)
+            self.assertEqual(len(program.Statements), 1, f"program has not enough Statements. got={len(program.Statements)}")
+
+            stmt = program.Statements[0]
+            self.assertIsInstance(stmt, ExpressionStatement, f"program.Statements[0] is not ExpressionStatement. got={type(stmt)}")
+
+            function = stmt.Expression
+            self.assertIsInstance(function, FunctionLiteral, f"exp not FunctionLiteral. got={type(function)} , {function.String()}")
+
+            if len(function.Parameters) != len(tt["expectedParameters"]):
+                self.fail("Length of parameters not equal.")
+
+            for i in range (len(function.Parameters)):
+                if not test_literal_expression(function.Parameters[i] , tt["expectedParameters"][i]):
+                    self.fail(f"mismatched parameters, expected = { tt["expectedParameters"][i]} , got = {function.Parameters[i]}")
+                
+    def test_call_expression_parsing(self):
+        input = 'add(1, 2 * 3, 4 + 5);'
+        lexer = Lexer(input)
+        parser = Parser(lexer)
+        program = parser.ParseProgram()
+
+        self.assertEqual(1 , len(program.Statements) , f"program.Statements does not contain 1 statements. got={len(program.Statements)}\n")
+        stmt = program.Statements[0]
+        self.assertIsInstance(stmt, ExpressionStatement, f"program.Statements[0] is not ExpressionStatement. got={type(stmt)}")
+
+        expression_ = stmt.Expression
+        self.assertIsInstance(expression_, CallExpression, f"exp not CallExpression. got={type(expression_)}")
+
+        self.assertTrue(test_identifier(expression_.Function, "add"))
+        self.assertEqual(len(expression_.Arguments) , 3)
+
+        self.assertTrue(test_literal_expression(expression_.Arguments[0] , 1))
+        self.assertTrue(test_infix_expression(expression_.Arguments[1] , 2 , "*" , 3))
+        self.assertTrue(test_infix_expression(expression_.Arguments[2] , 4 , "+" , 5))
+
+    def test_call_expression_parameter_parsing(self):
+        tests = [
+            {"input" : "add();" , "expectedIdent" : "add" , "exprectedArgs" : []},
+            {"input" : "add(1);" , "expectedIdent" : "add" , "exprectedArgs" : ["1"]},
+            {"input" : "add(1 , 2 * 3 , 4 + 5);" , "expectedIdent" : "add" , "exprectedArgs" : ["1" , "(2 * 3)" , "(4 + 5)"]}
+        ]
+
+        for tt in tests:
+            lexer = Lexer(tt["input"])
+            parser = Parser(lexer)
+            program = parser.ParseProgram()
+
+            check_parser_errors(parser)
+            self.assertEqual(len(program.Statements), 1, f"program has not enough Statements. got={len(program.Statements)}")
+
+            stmt = program.Statements[0]
+            self.assertIsInstance(stmt, ExpressionStatement, f"program.Statements[0] is not ExpressionStatement. got={type(stmt)}")
+
+            expression_ = stmt.Expression
+            self.assertIsInstance(expression_, CallExpression, f"exp not CallExpression. got={type(expression_)}")
+
+            self.assertTrue(test_identifier(expression_.Function , tt["expectedIdent"]))
+
+            self.assertEqual(len(expression_.Arguments) , len(tt["exprectedArgs"]) , f"Length of arguments different")
+
+            for i in range (len(expression_.Arguments)):
+                self.assertEqual(expression_.Arguments[i].String() , tt["exprectedArgs"][i] , f"mismatched parameters, expected = { tt["exprectedArgs"][i]} , got = {expression_.Arguments[i]}")
+             
 
 
 if __name__ == "__main__":
     unittest.main()
-
-
-
-

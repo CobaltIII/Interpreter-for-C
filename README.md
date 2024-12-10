@@ -8,6 +8,10 @@ Photo credits - Robert Nystrom
 ## 2. Parser
 A top down approach is used, we make a [Pratt Parser](https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html)
 
+## 2. Objects
+Taking inspiration from the Ruby compiler, "the system does not differentiate between a byte class or a Pizza class" -Thorsten Ball.
+We will try to make a similar kind of system for our interpreter where the return value of every evaluation will be an 'object', this could be a boolean, string or an object class itself.
+
 
 ### References 
 1. [So you want to write an interpreter?](https://www.youtube.com/watch?v=LCslqgM48D4)

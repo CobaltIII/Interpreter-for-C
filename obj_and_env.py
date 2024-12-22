@@ -4,6 +4,31 @@ from abc import ABC, abstractmethod
 
 ##############################################################
 
+class Environment:
+    def __init__(self, outer=None):
+        self.store = {}
+        self.outer = outer
+
+    def get(self, name):
+        obj = self.store.get(name)
+        if obj is None and self.outer is not None:
+            obj = self.outer.get(name)
+        return obj
+
+    def set(self, name, val):
+        self.store[name] = val
+        return val
+
+def NewEnclosedEnvironment(outer):
+    env = Environment()
+    env.outer = outer
+    return env
+
+def NewEnvironment():
+    return Environment()
+
+##############################################################
+
 class ObjectType:
     NULL_OBJ = "NULL"
     ERROR_OBJ = "ERROR"
@@ -69,7 +94,7 @@ class Error(Object):
         return "ERROR: " + self.message
 
 class Function(Object):
-    def __init__(self, parameters : list, body : str, env : dict):
+    def __init__(self, parameters : list[Identifier], body : BlockStatement, env : Environment):
         self.parameters = parameters
         self.body = body
         self.env = env
@@ -78,32 +103,12 @@ class Function(Object):
         return ObjectType.FUNCTION_OBJ
     
     def inspect(self) -> str:
-        params = ", ".join(self.parameters)
+        params = "[NO PARAMETERS]"
+        if len(self.parameters) > 0:
+            params = ""
+            for i in self.parameters:
+                params += i.String() + ", "
+            params = params[:-2]
         return f"fn({params}) {{\n{self.body}\n}}"
     
-##############################################################
-
-class Environment:
-    def __init__(self, outer=None):
-        self.store = {}
-        self.outer = outer
-
-    def get(self, name):
-        obj = self.store.get(name)
-        if obj is None and self.outer is not None:
-            obj = self.outer.get(name)
-        return obj
-
-    def set(self, name, val):
-        self.store[name] = val
-        return val
-
-def NewEnclosedEnvironment(outer):
-    env = Environment()
-    env.outer = outer
-    return env
-
-def NewEnvironment():
-    return Environment()
-
 ##############################################################

@@ -33,7 +33,6 @@ def testNullObject(obj : Object):
 
 
 class EvaluatorTest(unittest.TestCase):
-    '''
     def testEvalIntegerExpression(self):
         tests = [
             {"input" : "5" , "expected" : 5} , 
@@ -112,36 +111,113 @@ class EvaluatorTest(unittest.TestCase):
                 self.assertTrue(testIntegerObject(evaluated , tt["expected"]))
             else:
                 self.assertTrue(testNullObject(evaluated))
-    '''
+
     def testReturnStatements(self):
         tests = [
             {"input" : "return 10;" , "expected" : 10} , 
-            #{"input" : "return 10; 9;" , "expected" : 10} , 
-            #{"input" : "return 2 * 5; 9;" , "expected" : 10} , 
-            #{"input" : "9; return 2 * 5; 9;" , "expected" : 10} , 
-            #{"input" : """
-            #    if (10 > 1) {
-            #        if (10 > 1) {
-            #            return 10;
-            #        }
-            #    return 1; }""" , "expected" : 10},
-            #{"input" : """
-            #    let f = fn(x) {
-            #        return x;
-            #        x + 10;
-            #    };
-            #    f(10);""" , "expected" : 10},
-            #{"input" : """
-            #    let f = fn(x) {
-            #        let result = x + 10;
-            #        return result;
-            #        return 10;
-            #    };
-            #    f(10);""" , "expected" : 20}       
+            {"input" : "return 10; 9;" , "expected" : 10} , 
+            {"input" : "return 2 * 5; 9;" , "expected" : 10} , 
+            {"input" : "9; return 2 * 5; 9;" , "expected" : 10} , 
+            {"input" : """
+                if (10 > 1) {
+                    if (10 > 1) {
+                        return 10;
+                    }
+                return 1; }""" , "expected" : 10},
+            {"input" : """
+                let f = fn(x) {
+                    return x;
+                    x + 10;
+                };
+                f(10);""" , "expected" : 10},
+            {"input" : """
+                let f = fn(x) {
+                    let result = x + 10;
+                    return result;
+                    return 10;
+                };
+                f(10);""" , "expected" : 20}       
         ]
+        
         for tt in tests:
             evaluated = testEval(tt["input"])
             self.assertTrue(testIntegerObject(evaluated , tt["expected"]))
+
+    def testErrorHandling(self):
+        tests = [
+            {"input" : "5 + true;" , "expected" : "type mismatch: INTEGER + BOOLEAN"} , 
+            {"input" : "5 + true; 5;" , "expected" : "type mismatch: INTEGER + BOOLEAN"} , 
+            {"input" : "-true" , "expected" : "unknown operator: -BOOLEAN"} , 
+            {"input" : "true + false;" , "expected" : "unknown operator: BOOLEAN + BOOLEAN"} , 
+            {"input" : "5; true + false; 5" , "expected" : "unknown operator: BOOLEAN + BOOLEAN"} , 
+            {"input" : "if (10 > 1) { true + false; }" , "expected" : "unknown operator: BOOLEAN + BOOLEAN"} , 
+            {"input" : """
+                if (10 > 1) {
+                    if (10 > 1) {
+                        return true + false;
+                    }
+                return 1; }""" , "expected" : "unknown operator: BOOLEAN + BOOLEAN"},
+            {"input" : "foobar" , "expected" : "identifier not found: foobar"}
+        ]
+        
+        for tt in tests:
+            evaluated = testEval(tt["input"])
+            #print(evaluated.inspect())
+            self.assertTrue(isError(evaluated))
+            self.assertEqual(evaluated.message , tt["expected"])
+
+    def testLetStatements(self):
+        tests = [
+            {"input" : "let a = 5; a;" , "expected" : 5} , 
+            {"input" : "let a = 5 * 5; a;" , "expected" : 25} , 
+            {"input" : "let a = 5; let b = a; b;" , "expected" : 5} , 
+            {"input" : "let a = 5; let b = a; let c = a + b + 5; c;" , "expected" : 15} , 
+        ]
+        
+        for tt in tests:
+            evaluated = testEval(tt["input"])
+            self.assertTrue(testIntegerObject(evaluated , tt["expected"]))
+
+    def testFunctionObject(self):
+        input = "fn(x) { x + 2; };"
+        evaluated = testEval(input)
+        self.assertTrue(isinstance(evaluated , Function))
+        self.assertEqual(len(evaluated.parameters) , 1)
+        self.assertEqual(evaluated.parameters[0].String() , "x")
+        expected_body = "(x + 2)"
+        self.assertEqual(evaluated.body.String() , expected_body)
+
+    def testFunctionApplication(self):
+        tests = [
+            {"input" : "let identity = fn(x) { x; }; identity(5);" , "expected" : 5} , 
+            {"input" : "let identity = fn(x) { return x; }; identity(5);" , "expected" : 5} , 
+            {"input" : "let double = fn(x) { x * 2; }; double(5);" , "expected" : 10} , 
+            {"input" : "let add = fn(x, y) { x + y; }; add(5, 5);" , "expected" : 10} , 
+            {"input" : "let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));" , "expected" : 20} , 
+            {"input" : "fn(x) { x; }(5)" , "expected" : 5} 
+        ]
+        
+        for tt in tests:
+            evaluated = testEval(tt["input"])
+            self.assertTrue(testIntegerObject(evaluated , tt["expected"]))
+    
+    def testEnclosingEnvironments(self):
+        input = """
+        let first = 10;
+        let second = 10;
+        let third = 10;
+        
+        let ourFunction = fn(first) {
+          let second = 20;
+          
+          first + second + third;
+        };
+        
+        ourFunction(20) + first + second;
+        """
+        evaluated = testEval(input)
+        self.assertTrue(testIntegerObject(evaluated , 70))
+
 
 if __name__ == "__main__":
     unittest.main()

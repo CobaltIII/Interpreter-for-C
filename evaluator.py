@@ -28,6 +28,7 @@ def Eval (node : Node, env : Environment) -> Object:
         val = Eval(node.ReturnValue , env)
         if isError(val):
             return val
+        x = ReturnValue(val)
         return ReturnValue(val)
 
     elif isinstance(node, LetStatement):
@@ -35,7 +36,7 @@ def Eval (node : Node, env : Environment) -> Object:
         if isError(val):
             return val
         else:
-            env.Set(node.Name , val)
+            env.set(node.Name.Value , val)
 
     ################EXPRESSIONS################
 
@@ -69,7 +70,7 @@ def Eval (node : Node, env : Environment) -> Object:
     elif isinstance(node, FunctionLiteral):
         params = node.Parameters
         body = node.Body
-        return Function(params , env , body)
+        return Function(params , body , env)
 
     elif isinstance(node, CallExpression):
         function = Eval(node.Function , env)
@@ -87,7 +88,7 @@ def evalProgram(program : Program, env : Environment):
     for statement in program.Statements:
         result = Eval(statement, env)
         if isinstance(result, ReturnValue):
-            return result.value()
+            return result.value
         elif isinstance(result, Error):
             return result
     return result
@@ -124,9 +125,9 @@ def evalInfixExpression(operator : str, left : Object, right : Object):
     elif operator == "!=":
         return nativeBoolToBooleanObject(left != right)
     elif left.type() != right.type():
-        return newError("Type mismatch : " , left.type() , operator , right.type())
+        return newError("type mismatch: " , left.type() , operator , right.type())
     else:
-        return newError("Unknown operator : " , left.type() , operator , right.type())
+        return newError("unknown operator: " , left.type() , operator , right.type())
     
 def evalBangOperatorExpression(right : Object) : 
     if right == TRUE:
@@ -140,7 +141,7 @@ def evalBangOperatorExpression(right : Object) :
 
 def evalMinusPrefixOperatorExpression(right : Object):
     if right.type() != ObjectType.INTEGER_OBJ.strip():
-        return newError("unkown operator error : " , type(right))
+        return newError("unknown operator: -" , right.type())
     value = right.value
     return Integer(-value)
 
@@ -179,9 +180,9 @@ def evalIfExpression(ie : IfExpression, env : Environment):
         return NULL
     
 def evalIdentifier(node : Identifier, env : Environment):
-    val, found = env.get(node.value)
-    if not found:
-        return Error(f"identifier not found: {node.value}")
+    val = env.get(node.Value)
+    if val == None:
+        return Error(f"identifier not found: {node.Value}")
 
     return val
 
@@ -195,12 +196,16 @@ def isTruthy(obj : Object):
     else:
         return True
     
-def newError(format_string, *args):
-    return Error(format_string.format(*args))
+def newError(format_string : str, *args):
+    if len(args) == 0:
+        return Error(format_string)
+    elif len(args) == 1:
+        return Error(format_string + args[0])        
+    return Error(format_string + " ".join(args))
 
 def isError(obj : Object):
     if obj != None:
-        return (obj.type == ObjectType.ERROR_OBJ)
+        return (obj.type() == ObjectType.ERROR_OBJ)
     else:
         return False
 
@@ -216,16 +221,15 @@ def evalExpressions(exps : list[Expression], env : Environment):
 def applyFunction(fn : Object, args : list[Object]):
     if not isinstance(fn, Function):
         return newError(f"not a function: {fn.type()}")
-
     extended_env = extendFunctionEnv(fn, args)
     evaluated = Eval(fn.body, extended_env)
     return unwrapReturnValue(evaluated)
 
 def extendFunctionEnv(fn : Function , args : list[Object]):
-    env = Environment.NewEnclosedEnvironment(fn.env)
-    for paramIdx in range (len(fn.Parameters)):
-        param = fn.Parameters[paramIdx]
-        env.Set(param.Value , args[paramIdx])
+    env = NewEnclosedEnvironment(fn.env)
+    for paramIdx in range (len(fn.parameters)):
+        param = fn.parameters[paramIdx]
+        env.set(param.Value , args[paramIdx])
 
     return env
 

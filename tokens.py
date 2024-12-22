@@ -141,11 +141,10 @@ class Lexer:
         return tok
 
     def skip_whitespace(self):
-        if self.ch == None:
+        x = self.ch
+        while x == ' ' or x == '\t' or x == '\n' or x == '\r':
             self.read_char()
-            return
-        while self.ch in ' \t\n\r':
-            self.read_char()
+            x = self.ch
 
     def read_identifier(self):
         position = self.position

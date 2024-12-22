@@ -1,111 +1,20 @@
 from parser import *
-from tokens import *
+from tokens import * 
+from obj_and_env import *
+from parser import Boolean as BL
 
 ##############################################################
 
-class Environment:
-    def __init__(self, outer=None):
-        self.store = {}
-        self.outer = outer
+NULL = Null()
+TRUE = Boolean(True)
+FALSE = Boolean(False)
 
-    @staticmethod
-    def NewEnclosedEnvironment(outer):
-        env = Environment()
-        env.outer = outer
-        return env
+def Eval (node : Node, env : Environment) -> Object:
 
-    def Get(self, name):
-        obj = self.store.get(name)
-        if obj is None and self.outer is not None:
-            return self.outer.get(name)
-        return obj, obj is not None
+    #print(node.String() , type(node) , node)
 
-    def Set(self, name, val):
-        self.store[name] = val
-        return val
-    
-class ObjectType:
-    NULL_OBJ = "NULL"
-    ERROR_OBJ = "ERROR"
-    INTEGER_OBJ = "INTEGER"
-    BOOLEAN_OBJ = "BOOLEAN"
-    RETURN_VALUE_OBJ = "RETURN_VALUE"
-    FUNCTION_OBJ = "FUNCTION"
+    ################STATEMENTS################
 
-class Object:
-    def type(self) -> str:
-        raise NotImplementedError
-
-    def inspect(self) -> str:
-        raise NotImplementedError
-
-class Integer(Object):
-    def __init__(self, value: int):
-        self.value = value
-
-    def type(self) -> str:
-        return ObjectType.INTEGER_OBJ
-
-    def inspect(self) -> str:
-        return str(self.value)
-
-class Boolean(Object):
-    def __init__(self, value: bool):
-        self.value = value
-
-    def type(self) -> str:
-        return ObjectType.BOOLEAN_OBJ
-
-    def inspect(self) -> str:
-        return str(self.value).lower()
-
-class Null(Object):
-    def type(self) -> str:
-        return ObjectType.NULL_OBJ
-
-    def inspect(self) -> str:
-        return "null"
-
-class ReturnValue(Object):
-    def __init__(self, value: Object):
-        self.value = value
-
-    def type(self) -> str:
-        return ObjectType.RETURN_VALUE_OBJ
-
-    def inspect(self) -> str:
-        return self.value.inspect()
-
-class Error(Object):
-    def __init__(self, message: str):
-        self.message = message
-
-    def type(self) -> str:
-        return ObjectType.ERROR_OBJ
-
-    def inspect(self) -> str:
-        return f"ERROR: {self.message}"
-
-class Function(Object):
-    def __init__(self, parameters: List[str], body: str, env: dict):
-        self.parameters = parameters
-        self.body = body
-        self.env = env
-
-    def type(self) -> str:
-        return ObjectType.FUNCTION_OBJ
-
-    def inspect(self) -> str:
-        params = ", ".join(self.parameters)
-        return f"fn({params}) {{\n{self.body}\n}}"
-
-##############################################################
-
-NULL = None
-TRUE = True
-FALSE = False
-
-def Eval (node, env):
     if isinstance(node, Program):
         return evalProgram(node, env)
 
@@ -119,22 +28,21 @@ def Eval (node, env):
         val = Eval(node.ReturnValue , env)
         if isError(val):
             return val
-        else:
-            return ReturnValue(val)
+        return ReturnValue(val)
 
     elif isinstance(node, LetStatement):
-        val = Eval(node.ReturnValue , env)
+        val = Eval(node.Value , env)
         if isError(val):
             return val
         else:
-            env.Set(node.Name.Value , val)
+            env.Set(node.Name , val)
 
     ################EXPRESSIONS################
 
     elif isinstance(node, IntegerLiteral):
         return Integer(node.Value)
 
-    elif isinstance(node, Boolean):
+    elif isinstance(node, Boolean) or isinstance(node, BL):
         return nativeBoolToBooleanObject(node.Value)
 
     elif isinstance(node, PrefixExpression):
@@ -163,66 +71,64 @@ def Eval (node, env):
         body = node.Body
         return Function(params , env , body)
 
-    '''
     elif isinstance(node, CallExpression):
         function = Eval(node.Function , env)
         if isError(function):
             return function
-        args = 
-    '''
+        args = evalExpressions(node.Arguments , env)
+        if len(args) == 1 and isError(args[0]):
+            return args[0]
+        return applyFunction(function, args)
+
     return None
 
-def evalProgram(program, env):
+def evalProgram(program : Program, env : Environment):
     result = None
     for statement in program.Statements:
         result = Eval(statement, env)
-
         if isinstance(result, ReturnValue):
-            return result.value
+            return result.value()
         elif isinstance(result, Error):
             return result
-
     return result
 
-def evalBlockStatement(block, env):
-    result = Object()
+def evalBlockStatement(block : BlockStatement, env : Environment):
+    result = None
     for statement in block.Statements:
         result = Eval(statement, env)
         if result != None:
-            if isinstance(result , ObjectType.RETURN_VALUE_OBJ):
+            x = result.type()
+            if x == ObjectType.RETURN_VALUE_OBJ or x == ObjectType.ERROR_OBJ:
                 return result
-            if isinstance(result , ObjectType.ERROR_OBJ):
-                return result
-
     return result
 
-def nativeBoolToBooleanObject(input_bool):
+def nativeBoolToBooleanObject(input_bool : bool):
     if input_bool:
-        return True
+        return TRUE
     else:
-        return False
+        return FALSE
 
-def evalPrefixExpression(operator, right):
-    if operator == "!":
+def evalPrefixExpression(operator : str, right : Object):
+    if operator.strip() == "!":
         return evalBangOperatorExpression(right)
-    elif operator == "-":
+    elif operator.strip() == "-":
         return evalMinusPrefixOperatorExpression(right)
     else:
-        return newError("unknown operator error : " , operator  , type(right))
+        return newError("unknown operator error : " , operator  , right.type())
     
-def evalInfixExpression(operator, left, right):
-    if isinstance(left, ObjectType.INTEGER_OBJ) and isinstance(right , ObjectType.INTEGER_OBJ):
+def evalInfixExpression(operator : str, left : Object, right : Object):
+    if left.type() == ObjectType.INTEGER_OBJ and right.type() == ObjectType.INTEGER_OBJ:
         return evalIntegerInfixExpression(operator, left, right)
     elif operator == "==":
         return nativeBoolToBooleanObject(left == right)
     elif operator == "!=":
         return nativeBoolToBooleanObject(left != right)
-    elif type(left) != type(right):
-        return newError("Type mismatch : " , type(left) , operator , type(right))
+    elif left.type() != right.type():
+        return newError("Type mismatch : " , left.type() , operator , right.type())
     else:
-        return newError("Unknown operator : " , type(left) , operator , type(right))
+        return newError("Unknown operator : " , left.type() , operator , right.type())
     
-def evalBangOperatorExpression(right) : 
+def evalBangOperatorExpression(right : Object) : 
     if right == TRUE:
         return FALSE
     elif right == FALSE:
@@ -232,15 +138,15 @@ def evalBangOperatorExpression(right) :
     else:
         return FALSE
 
-def evalMinusPrefixOperatorExpression(right):
-    if not isinstance(right, ObjectType.INTEGER_OBJ):
+def evalMinusPrefixOperatorExpression(right : Object):
+    if right.type() != ObjectType.INTEGER_OBJ.strip():
         return newError("unkown operator error : " , type(right))
-    value = right.Value
+    value = right.value
     return Integer(-value)
 
-def evalIntegerInfixExpression(operator , left, right):
-    leftVal = left.Value
-    rightVal = right.Value
+def evalIntegerInfixExpression(operator : str , left : Object, right : Object):
+    leftVal = left.value
+    rightVal = right.value
 
     if operator == "+":
         return Integer(leftVal + rightVal)
@@ -261,25 +167,25 @@ def evalIntegerInfixExpression(operator , left, right):
     else:
         return newError("unkown operator error : " , type(right) , operator ,  type(left))
     
-def evalIfExpression(ie , env):
+def evalIfExpression(ie : IfExpression, env : Environment):
     condition = Eval(ie.Condition, env)
     if isError(condition):
         return condition
     if isTruthy(condition):
         return Eval(ie.Consequence, env)
     elif ie.Alternative != None:
-        return eval(ie.Alternative, env)
+        return Eval(ie.Alternative, env)
     else:
-        return None
+        return NULL
     
-def evalIdentifier(node, env):
+def evalIdentifier(node : Identifier, env : Environment):
     val, found = env.get(node.value)
     if not found:
         return Error(f"identifier not found: {node.value}")
 
     return val
 
-def isTruthy(obj):
+def isTruthy(obj : Object):
     if obj == NULL:
         return False
     elif obj == TRUE:
@@ -292,22 +198,22 @@ def isTruthy(obj):
 def newError(format_string, *args):
     return Error(format_string.format(*args))
 
-def isError(obj):
+def isError(obj : Object):
     if obj != None:
-        return isinstance(obj, ObjectType.ERROR_OBJ)
+        return (obj.type == ObjectType.ERROR_OBJ)
     else:
         return False
 
-def evalExpressions(exps, env):
+def evalExpressions(exps : list[Expression], env : Environment):
     results = []
     for i in exps:
-        evaluated = Eval(e, env)
+        evaluated = Eval(i, env)
         if isError(evaluated):
             return evaluated
         results.append(evaluated)
     return results
 
-def applyFunction(fn, args):
+def applyFunction(fn : Object, args : list[Object]):
     if not isinstance(fn, Function):
         return newError(f"not a function: {fn.type()}")
 
@@ -315,7 +221,7 @@ def applyFunction(fn, args):
     evaluated = Eval(fn.body, extended_env)
     return unwrapReturnValue(evaluated)
 
-def extendFunctionEnv(fn , args):
+def extendFunctionEnv(fn : Function , args : list[Object]):
     env = Environment.NewEnclosedEnvironment(fn.env)
     for paramIdx in range (len(fn.Parameters)):
         param = fn.Parameters[paramIdx]
@@ -323,10 +229,9 @@ def extendFunctionEnv(fn , args):
 
     return env
 
-def unwrapReturnValue(obj):
+def unwrapReturnValue(obj : Object):
     if isinstance(obj, ReturnValue):
         return obj.value
 
     return obj
-
 

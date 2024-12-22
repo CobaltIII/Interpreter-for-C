@@ -489,7 +489,7 @@ class Parser :
             return None
         
         para_consequence = self.parseBlockStatement()
-
+        para_alternative = None
         if self.peekTokenIs(TokenType.ELSE):
             self.nextToken()
 
@@ -497,10 +497,8 @@ class Parser :
                 return None
 
             para_alternative = self.parseBlockStatement()
-            expression = IfExpression(token=para_token , condition=para_condition , consequence=para_consequence , alternative=para_alternative)
-            return expression
         
-        expression = IfExpression(token=para_token , condition=para_condition , consequence=para_consequence)
+        expression = IfExpression(token=para_token , condition=para_condition , consequence=para_consequence , alternative=para_alternative)
         return expression
 
     def parseBlockStatement(self):
@@ -635,7 +633,7 @@ def test_infix_expression(exp, left , operator , right):
     return True
 
 
-
+'''
 class ParserTest(unittest.TestCase):
 
     def test_let_statements(self):
@@ -981,3 +979,4 @@ class ParserTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+'''

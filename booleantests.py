@@ -22,7 +22,13 @@ def Start():
         if evaluated:
             print(evaluated.inspect())
 
+def fibo(x):
+    if (x < 2):
+        return 1
+    return fibo(x - 2) + fibo(x - 1)
+
 def Fib(x):
+    print(fibo(x))
     env = Environment()
     input = """
     let fib = fn(n) { 
@@ -31,8 +37,13 @@ def Fib(x):
         else 
             { fib(n - 2) + fib(n - 1) } 
     };
-    fib("""
-    input += str(x) + ");"
+    """
+    lexer = Lexer(input)
+    parser = Parser(lexer)
+    program = parser.ParseProgram()
+    evaluated = Eval(program, env)
+
+    input = f"fib({x});"
     lexer = Lexer(input)
     parser = Parser(lexer)
     program = parser.ParseProgram()
@@ -41,5 +52,5 @@ def Fib(x):
         print(evaluated.inspect())
 
 if __name__ == "__main__":
-    Fib(6)
+    Fib(30)
 

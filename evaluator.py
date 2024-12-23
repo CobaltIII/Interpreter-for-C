@@ -43,6 +43,9 @@ def Eval (node : Node, env : Environment) -> Object:
     elif isinstance(node, IntegerLiteral):
         return Integer(node.Value)
 
+    elif isinstance(node, StringLiteral):
+        return String(value = node.Value)
+
     elif isinstance(node, Boolean) or isinstance(node, BL):
         return nativeBoolToBooleanObject(node.Value)
 
@@ -80,6 +83,26 @@ def Eval (node : Node, env : Environment) -> Object:
         if len(args) == 1 and isError(args[0]):
             return args[0]
         return applyFunction(function, args)
+
+    ################HIGHER OBJECTS################
+
+    elif isinstance(node, ArrayLiteral):
+        elementss = evalExpressions(node.Elements , env)
+        if len(elementss) == 1 and isError(elementss[0]):
+            return elementss[0]
+        return Array(elements = elementss)
+
+    elif isinstance(node, IndexExpression):
+        left = Eval(node.Left , env)
+        if isError(left):
+            return left
+        index = Eval(node.Index , env)
+        if isError(index):
+            return index
+        return evalIndexExpression(left, index)
+    
+    elif isinstance(node, HashLiteral):
+        return evalHashLiteral(node, env)
 
     return None
 
@@ -120,6 +143,8 @@ def evalPrefixExpression(operator : str, right : Object):
 def evalInfixExpression(operator : str, left : Object, right : Object):
     if left.type() == ObjectType.INTEGER_OBJ and right.type() == ObjectType.INTEGER_OBJ:
         return evalIntegerInfixExpression(operator, left, right)
+    elif left.type() == ObjectType.STRING_OBJ and right.type() == ObjectType.STRING_OBJ:
+        return evalStringInfixExpression(operator, left, right)
     elif operator == "==":
         return nativeBoolToBooleanObject(left == right)
     elif operator == "!=":
@@ -167,7 +192,14 @@ def evalIntegerInfixExpression(operator : str , left : Object, right : Object):
         return nativeBoolToBooleanObject(leftVal != rightVal)
     else:
         return newError("unkown operator error : " , type(right) , operator ,  type(left))
-    
+
+def evalStringInfixExpression(operator : str , left : Object, right : Object):
+    if operator != "+":
+        return newError("unknown operator: " , left.type() , operator , right.type())
+    leftVal = left.value
+    rightVal = right.value
+    return String(leftVal + rightVal)
+
 def evalIfExpression(ie : IfExpression, env : Environment):
     condition = Eval(ie.Condition, env)
     if isError(condition):
@@ -239,3 +271,43 @@ def unwrapReturnValue(obj : Object):
 
     return obj
 
+def evalIndexExpression(left : Object, index : Object):
+    if left.type() == ObjectType.ARRAY_OBJ and index.type() == ObjectType.INTEGER_OBJ:
+        return evalArrayIndexExpression(left, index)
+    elif left.type() == ObjectType.HASH_OBJ:
+        return evalHashIndexExpression(left, index)
+    else:
+        return newError("index operator not supported: " , left.type())
+
+def evalArrayIndexExpression(array : Object, index : Object):
+    arrayObject = array
+    idx = index.value
+    max = len(arrayObject.elements) - 1
+    if idx < 0 or idx > max:
+        return NULL
+    return arrayObject.elements[idx]
+
+def evalHashLiteral(node : HashLiteral, env : Environment):
+    pairs = {}
+    godPairs = {}
+    for keyNode, valueNode in node.Pairs.items():
+        key = Eval(keyNode, env)
+        if isError(key):
+            return key
+        value = Eval(valueNode, env)
+        if isError(value):
+            return value
+        hashKey = key.hash_key()
+        pairs[hashKey] = HashPair(key = key, value = value)
+        godPairs[(key.type() , hashKey.Value)] = hashKey
+    return Hash(pairs = pairs , godPairs = godPairs)
+
+def evalHashIndexExpression(hash : Object, index : Object):
+    hashObject = hash
+    if not isinstance(index, Hashable):
+        return newError(f"unusable as hash key: {index.type()}")
+    key = hashObject.godPairs.get((index.type() , index.hash_key().Value))
+    pair = hashObject.pairs.get(key)
+    if pair == None:
+        return NULL
+    return pair.value

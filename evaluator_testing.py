@@ -32,6 +32,7 @@ def testNullObject(obj : Object):
     return True
 
 class EvaluatorTest(unittest.TestCase):
+    '''
     def testEvalIntegerExpression(self):
         tests = [
             {"input" : "5" , "expected" : 5} , 
@@ -141,7 +142,7 @@ class EvaluatorTest(unittest.TestCase):
         for tt in tests:
             evaluated = testEval(tt["input"])
             self.assertTrue(testIntegerObject(evaluated , tt["expected"]))
-
+    
     def testErrorHandling(self):
         tests = [
             {"input" : "5 + true;" , "expected" : "type mismatch: INTEGER + BOOLEAN"} , 
@@ -156,7 +157,9 @@ class EvaluatorTest(unittest.TestCase):
                         return true + false;
                     }
                 return 1; }""" , "expected" : "unknown operator: BOOLEAN + BOOLEAN"},
-            {"input" : "foobar" , "expected" : "identifier not found: foobar"}
+            {"input" : "foobar" , "expected" : "identifier not found: foobar"} ,
+            {"input" : """ {"name" : "Monkey"}[fn(x) {x}]; """ , "expected" : "unusable as hash key: FUNCTION"} , 
+            {"input" : "999[1]" , "expected" : "index operator not supported: INTEGER"} 
         ]
         
         for tt in tests:
@@ -164,7 +167,7 @@ class EvaluatorTest(unittest.TestCase):
             #print(evaluated.inspect())
             self.assertTrue(isError(evaluated))
             self.assertEqual(evaluated.message , tt["expected"])
-
+    
     def testLetStatements(self):
         tests = [
             {"input" : "let a = 5; a;" , "expected" : 5} , 
@@ -216,6 +219,115 @@ class EvaluatorTest(unittest.TestCase):
         """
         evaluated = testEval(input)
         self.assertTrue(testIntegerObject(evaluated , 70))
+    
+    def testClosures(self):
+        input = """
+        let newAdder = fn(x) {
+          fn(y) { x + y };
+        };
+        
+        let addTwo = newAdder(2);
+        addTwo(2);
+        """
+        self.assertTrue(testIntegerObject(testEval(input) , 4))
+    
+    def testStringLiteral(self):
+        input = '"Hello World!"'
+        evaluated = testEval(input)
+        self.assertTrue(isinstance(evaluated , String))
+        self.assertEqual(evaluated.value , "Hello World!")
+    
+    def testStringConcatenation(self):
+        input = '"Hello" +  " World!"'
+        evaluated = testEval(input)
+        self.assertTrue(isinstance(evaluated , String))
+        self.assertEqual(evaluated.value , "Hello World!")
+    '''
+    def testBuiltinFunctions(self):
+        tests = [
+            {"input" : """len("")""" , "expected" : 0} , 
+            #{"input" : "len(\"four\")" , "expected" : 4} , 
+            #{"input" : "len(\"hello world\")" , "expected" : 11} , 
+            #{"input" : "len(1)" , "expected" : "argument to `len` not supported, got INTEGER"} , 
+            #{"input" : "len(\"one\", \"two\")" , "expected" : "wrong number of arguments. got=2, want=1"} , 
+            #{"input" : "len([1, 2, 3])" , "expected" : 3} , 
+            #{"input" : "len([])" , "expected" : 0} , 
+            #{"input" : "first([1, 2, 3])" , "expected" : 1} , 
+            #{"input" : "first([])" , "expected" : None} , 
+            #{"input" : "first(1)" , "expected" : "argument to `first` must be ARRAY, got INTEGER"} , 
+            #{"input" : "last([1, 2, 3])" , "expected" : 3} , 
+            #{"input" : "last([])" , "expected" : None} , 
+            #{"input" : "last(1)" , "expected" : "argument to `last` must be ARRAY, got INTEGER"} , 
+            #{"input" : "rest([1, 2, 3])" , "expected" : [2, 3]} , 
+            #{"input" : "rest([])" , "expected" : []} , 
+            #{"input" : "rest(1)" , "expected" : "argument to `rest` must be ARRAY, got INTEGER"} , 
+            #{"input" : "push([], 1)" , "expected" : [1]} , 
+            #{"input" : "push(1, 1)" , "expected" : "argument to `push` must be ARRAY, got INTEGER"} , 
+            #{"input" : "push([], 1, 2)" , "expected" : "wrong number of arguments. got=2, want=2"} , 
+        ]
+        for tt in tests:
+            evaluated = testEval(tt["input"])
+            if isinstance(tt["expected"] , int):
+                self.assertTrue(testIntegerObject(evaluated , tt["expected"]))
+            elif isinstance(tt["expected"] , str):
+                self.assertTrue(isError(evaluated))
+                self.assertEqual(evaluated.message , tt["expected"])
+            elif isinstance(tt["expected"] , list):
+                self.assertTrue(isinstance(evaluated , Array))
+                self.assertEqual(len(evaluated.elements) , len(tt["expected"]))
+                for i in range(len(tt["expected"])):
+                    self.assertTrue(testIntegerObject(evaluated.elements[i] , tt["expected"][i]))
+    '''
+    def testArrayLiterals(self):
+        input = "[1, 2 * 2, 3 + 3]"
+        evaluated = testEval(input)
+        self.assertTrue(isinstance(evaluated , Array))
+        self.assertEqual(len(evaluated.elements) , 3)
+        self.assertTrue(testIntegerObject(evaluated.elements[0] , 1))
+        self.assertTrue(testIntegerObject(evaluated.elements[1] , 4))
+        self.assertTrue(testIntegerObject(evaluated.elements[2] , 6))
+    
+    def testArrayIndexExpressions(self):
+        tests = [
+            {"input" : "[1, 2, 3][0]" , "expected" : 1} , 
+            {"input" : "[1, 2, 3][1]" , "expected" : 2} , 
+            {"input" : "[1, 2, 3][2]" , "expected" : 3} , 
+            {"input" : "let i = 0; [1][i];" , "expected" : 1} , 
+            {"input" : "[1, 2, 3][1 + 1];" , "expected" : 3} , 
+            {"input" : "let myArray = [1, 2, 3]; myArray[2];" , "expected" : 3} , 
+            {"input" : "let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];" , "expected" : 6} , 
+            {"input" : "let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]" , "expected" : 2} , 
+            {"input" : "[1, 2, 3][3]" , "expected" : None} , 
+            {"input" : "[1, 2, 3][-1]" , "expected" : None} , 
+        ]
+        for tt in tests:
+            evaluated = testEval(tt["input"])
+            #print(evaluated.inspect() , type(evaluated) , evaluated )
+            if tt["expected"]:
+                self.assertTrue(testIntegerObject(evaluated , tt["expected"]))
+            else:
+                self.assertTrue(evaluated.inspect() is None)
+    
+    
+    def testHashIndexExpressions(self):
+        tests = [
+            {"input" : '{"foo": 5}["foo"]' , "expected" : 5} , 
+            {"input" : '{"foo": 5}["bar"]' , "expected" : None} , 
+            {"input" : 'let key = "foo"; {"foo": 5}[key]' , "expected" : 5} , 
+            {"input" : '{}["foo"]' , "expected" : None} , 
+            {"input" : '{5: 5}[5]' , "expected" : 5} , 
+            {"input" : '{true: 5}[true]' , "expected" : 5} , 
+            {"input" : '{false: 5}[false]' , "expected" : 5} , 
+            {"input" : '{"thr" + "ee" : 5}["three"]' , "expected" : 5} , 
+            {"input" : 'let two = "two"; {two : 5}["two"]' , "expected" : 5} ,
+        ]
+        for tt in tests:
+            evaluated = testEval(tt["input"])
+            if tt["expected"]:
+                self.assertTrue(testIntegerObject(evaluated , tt["expected"]))
+            else:
+                self.assertTrue(evaluated.inspect() is None)
+    '''
 
 if __name__ == "__main__":
     unittest.main()

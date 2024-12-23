@@ -221,6 +221,68 @@ class CallExpression(Expression):
     def String(self) -> str:
         args = [arg.String() for arg in self.Arguments]
         return f"{self.Function.String()}({', '.join(args)})"
+class StringLiteral(Expression):
+    def __init__(self, token: Token, value: str):
+        self.Token = token
+        self.Value = value
+
+    def expressionNode(self):
+        pass
+
+    def TokenLiteral(self) -> str:
+        return self.Token.literal
+
+    def String(self) -> str:
+        return self.Token.literal
+class ArrayLiteral(Expression):
+    def __init__(self, token: Token, elements: List[Expression]):
+        self.Token = token
+        self.Elements = elements
+
+    def expressionNode(self):
+        pass
+
+    def TokenLiteral(self) -> str:
+        return self.Token.literal
+
+    def String(self) -> str:
+        if len(self.Elements) == 0:
+            return "[]"
+        if len(self.Elements) == 1:
+            return f"[{self.Elements[0].String()}]"
+        elements = [e.String() for e in self.Elements]
+        return f"[{', '.join(elements)}]"
+class IndexExpression(Expression):
+    def __init__(self, token: Token, left: Expression, index: Expression):
+        self.Token = token
+        self.Left = left
+        self.Index = index
+
+    def expressionNode(self):
+        pass
+
+    def TokenLiteral(self) -> str:
+        return self.Token.literal
+
+    def String(self) -> str:
+        return f"({self.Left.String()}[{self.Index.String()}])"
+class HashLiteral(Expression):
+    def __init__(self, token: Token, pairs: dict[Expression : Expression]):
+        self.Token = token
+        self.Pairs = pairs
+
+    def expressionNode(self):
+        pass
+
+    def TokenLiteral(self) -> str:
+        return self.Token.literal
+
+    def String(self) -> str:
+        if len(self.Pairs) == 0:
+            return "{}"
+        pairs = [f"{k.String()}: {v.String()}" for k, v in self.Pairs.items()]
+        return f"{{{', '.join(pairs)}}}"
+
 
 '''
 class TestStringMethod(unittest.TestCase):
@@ -257,6 +319,7 @@ SUM = 4           # +
 PRODUCT = 5       # *
 PREFIX = 6        # -X or !X
 CALL = 7          # myFunction(X)
+INDEX = 8
 
 # Token precedences
 precedences = {
@@ -269,6 +332,7 @@ precedences = {
     TokenType.SLASH: PRODUCT,
     TokenType.ASTERISK: PRODUCT,
     TokenType.LPAREN: CALL,
+    TokenType.LBRACKET : INDEX
 }
 
 class Parser : 
@@ -290,6 +354,7 @@ class Parser :
 
         self.registerPrefix(TokenType.IDENT, self.parseIdentifier)
         self.registerPrefix(TokenType.INT, self.parseIntegerLiteral)
+        self.registerPrefix(TokenType.STRING, self.parseStringLiteral)
         self.registerPrefix(TokenType.BANG, self.parsePrefixExpression)
         self.registerPrefix(TokenType.MINUS, self.parsePrefixExpression)
         self.registerPrefix(TokenType.TRUE, self.parseBoolean)
@@ -297,6 +362,8 @@ class Parser :
         self.registerPrefix(TokenType.LPAREN, self.parseGroupedExpression)
         self.registerPrefix(TokenType.IF, self.parseIfExpression)
         self.registerPrefix(TokenType.FUNCTION, self.parseFunctionLiteral)
+        self.registerPrefix(TokenType.LBRACKET, self.parseArrayLiteral)
+        self.registerPrefix(TokenType.LBRACE, self.parseHashLiteral)
 
         self.registerInfix(TokenType.PLUS, self.parseInfixExpression)
         self.registerInfix(TokenType.MINUS, self.parseInfixExpression)
@@ -307,6 +374,7 @@ class Parser :
         self.registerInfix(TokenType.LT, self.parseInfixExpression)
         self.registerInfix(TokenType.GT, self.parseInfixExpression)
         self.registerInfix(TokenType.LPAREN, self.parseCallExpression)
+        self.registerInfix(TokenType.LBRACKET, self.parseIndexExpression)
 
         self.nextToken()
         self.nextToken()
@@ -437,6 +505,9 @@ class Parser :
             return None
         return lit
 
+    def parseStringLiteral(self):
+        return StringLiteral(token= self.curToken, value = self.curToken.literal)
+
     def parsePrefixExpression(self):
         x = self.curToken
         self.nextToken()
@@ -553,9 +624,55 @@ class Parser :
         return identifiers
     
     def parseCallExpression(self, function):
-        exp =  CallExpression(token=self.curToken, function=function, arguments=self.parseCallArguments())
+        exp =  CallExpression(token=self.curToken, function=function, arguments=self.parseExpressionList(TokenType.RPAREN))
         return exp
     
+    def parseExpressionList(self, end : Token):
+        listt = []
+        if self.peekTokenIs(end):
+            self.nextToken()
+            return listt
+        self.nextToken()
+        listt.append(self.parseExpression(LOWEST))
+        while self.peekTokenIs(TokenType.COMMA):
+            self.nextToken()
+            self.nextToken()
+            listt.append(self.parseExpression(LOWEST))
+        if not self.expectPeek(end):
+            return None
+        return listt
+
+    def parseArrayLiteral(self):
+        array =  ArrayLiteral(token=self.curToken, elements=self.parseExpressionList(TokenType.RBRACKET))
+        return array
+    
+    def parseIndexExpression(self, left: Expression):
+        x = self.curToken
+        self.nextToken()
+        indexx = self.parseExpression(LOWEST)
+        if not self.expectPeek(TokenType.RBRACKET):
+            return None
+        return IndexExpression(token=x, left=left, index=indexx)
+
+    def parseHashLiteral(self):
+        hash =  HashLiteral(token=self.curToken, pairs={})
+        while not self.peekTokenIs(TokenType.RBRACE):
+            self.nextToken()
+            key = self.parseExpression(LOWEST)
+            if not self.expectPeek(TokenType.COLON):
+                return None
+            self.nextToken()
+            value = self.parseExpression(LOWEST)
+            hash.Pairs[key] = value
+            if not self.peekTokenIs(TokenType.RBRACE) and not self.expectPeek(TokenType.COMMA):
+                return None
+            
+        if not self.expectPeek(TokenType.RBRACE):
+            return None
+        
+        return hash
+    
+    '''
     def parseCallArguments(self):
         args = []
 
@@ -574,7 +691,7 @@ class Parser :
         if not self.expectPeek(TokenType.RPAREN):
             return None
 
-        return args
+        return args'''
 
 ###########################################################################################################################################################################
 

@@ -9,6 +9,7 @@ class TokenType:
     # Identifiers + literals
     IDENT = "IDENT"  # add, foobar, x, y, ...
     INT = "INT"  # 1343456
+    STRING = "STRING"
 
     # Operators
     ASSIGN = "="
@@ -27,11 +28,14 @@ class TokenType:
     # Delimiters
     COMMA = ","
     SEMICOLON = ";"
+    COLON = ":"
 
     LPAREN = "("
     RPAREN = ")"
     LBRACE = "{"
     RBRACE = "}"
+    LBRACKET = "["
+    RBRACKET = "]"
 
     # Keywords
     FUNCTION = "FUNCTION"
@@ -119,6 +123,8 @@ class Lexer:
             tok = Token(TokenType.GT, self.ch)
         elif self.ch == ';':
             tok = Token(TokenType.SEMICOLON, self.ch)
+        elif self.ch == ':':
+            tok = Token(TokenType.COLON, self.ch)
         elif self.ch == ',':
             tok = Token(TokenType.COMMA, self.ch)
         elif self.ch == '{':
@@ -129,6 +135,12 @@ class Lexer:
             tok = Token(TokenType.LPAREN, self.ch)
         elif self.ch == ')':
             tok = Token(TokenType.RPAREN, self.ch)
+        elif self.ch == '"':
+            tok = Token(TokenType.STRING, self.read_string())
+        elif self.ch == '[':
+            tok = Token(TokenType.LBRACKET, self.ch)
+        elif self.ch == ']':
+            tok = Token(TokenType.RBRACKET, self.ch)
         elif self.ch.isalpha():
             literal = self.read_identifier()
             return Token(lookup_ident(literal), literal)
@@ -156,6 +168,14 @@ class Lexer:
         position = self.position
         while self.ch and self.ch.isdigit():
             self.read_char()
+        return self.input[position:self.position]
+    
+    def read_string(self):
+        position = self.position + 1
+        while True:
+            self.read_char()
+            if self.ch == '"' or self.ch == None:
+                break
         return self.input[position:self.position]
 
 def start_repl():

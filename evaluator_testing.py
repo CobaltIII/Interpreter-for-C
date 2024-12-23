@@ -31,7 +31,6 @@ def testNullObject(obj : Object):
         return False
     return True
 
-
 class EvaluatorTest(unittest.TestCase):
     def testEvalIntegerExpression(self):
         tests = [
@@ -217,7 +216,6 @@ class EvaluatorTest(unittest.TestCase):
         """
         evaluated = testEval(input)
         self.assertTrue(testIntegerObject(evaluated , 70))
-
 
 if __name__ == "__main__":
     unittest.main()

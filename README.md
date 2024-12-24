@@ -1,8 +1,12 @@
 # Interpreter for a C type language called Monkey
 
 ![image](https://github.com/user-attachments/assets/93a7dda7-b8a2-4029-bb27-24170469007e)
+(credits - Robert Nystrom)
 
-This project is a simple interpreter that implements the basics of a limited C-like language. It serves as an educational tool to understand how interpreters work and to experiment with fundamental programming language concepts.
+> Implementing a language is a real test of programming skill. The code is complex and performance critical. You must master recursion, dynamic arrays, trees, graphs, and hash tables. - Robert Nystrom
+
+This project is a simple interpreter that implements the basics of a limited C-like language. 
+It uses Pratt-Parsing to be able to evaluate expressions using Top Down Operator Precedence instead of context free grammar or Backus Naur Form. This helps us form ast trees to evaluate the expressions with precedence efficiently.
 
 ## Features
 

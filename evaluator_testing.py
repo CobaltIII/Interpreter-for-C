@@ -32,7 +32,7 @@ def testNullObject(obj : Object):
     return True
 
 class EvaluatorTest(unittest.TestCase):
-    '''
+    
     def testEvalIntegerExpression(self):
         tests = [
             {"input" : "5" , "expected" : 5} , 
@@ -242,31 +242,31 @@ class EvaluatorTest(unittest.TestCase):
         evaluated = testEval(input)
         self.assertTrue(isinstance(evaluated , String))
         self.assertEqual(evaluated.value , "Hello World!")
-    '''
+    
     def testBuiltinFunctions(self):
         tests = [
             {"input" : """len("")""" , "expected" : 0} , 
-            #{"input" : "len(\"four\")" , "expected" : 4} , 
-            #{"input" : "len(\"hello world\")" , "expected" : 11} , 
-            #{"input" : "len(1)" , "expected" : "argument to `len` not supported, got INTEGER"} , 
-            #{"input" : "len(\"one\", \"two\")" , "expected" : "wrong number of arguments. got=2, want=1"} , 
-            #{"input" : "len([1, 2, 3])" , "expected" : 3} , 
-            #{"input" : "len([])" , "expected" : 0} , 
-            #{"input" : "first([1, 2, 3])" , "expected" : 1} , 
-            #{"input" : "first([])" , "expected" : None} , 
-            #{"input" : "first(1)" , "expected" : "argument to `first` must be ARRAY, got INTEGER"} , 
-            #{"input" : "last([1, 2, 3])" , "expected" : 3} , 
-            #{"input" : "last([])" , "expected" : None} , 
-            #{"input" : "last(1)" , "expected" : "argument to `last` must be ARRAY, got INTEGER"} , 
-            #{"input" : "rest([1, 2, 3])" , "expected" : [2, 3]} , 
-            #{"input" : "rest([])" , "expected" : []} , 
-            #{"input" : "rest(1)" , "expected" : "argument to `rest` must be ARRAY, got INTEGER"} , 
-            #{"input" : "push([], 1)" , "expected" : [1]} , 
-            #{"input" : "push(1, 1)" , "expected" : "argument to `push` must be ARRAY, got INTEGER"} , 
-            #{"input" : "push([], 1, 2)" , "expected" : "wrong number of arguments. got=2, want=2"} , 
-        ]
+            {"input" : "len(\"four\")" , "expected" : 4} , 
+            {"input" : "len(\"hello world\")" , "expected" : 11} , 
+            {"input" : "len(1)" , "expected" : "argument to `len` not supported, got INTEGER"} , 
+            {"input" : "len(\"one\", \"two\")" , "expected" : "wrong number of arguments. got=2, want=1"} , 
+            {"input" : "len([1, 2, 3])" , "expected" : 3} , 
+            {"input" : "len([])" , "expected" : 0} , 
+            {"input" : "first([1, 2, 3])" , "expected" : 1} , 
+            {"input" : "first([])" , "expected" : None} , 
+            {"input" : "first(1)" , "expected" : "argument to `first` must be ARRAY, got INTEGER"} , 
+            {"input" : "last([1, 2, 3])" , "expected" : 3} , 
+            {"input" : "last([])" , "expected" : None} , 
+            {"input" : "last(1)" , "expected" : "argument to `last` must be ARRAY, got INTEGER"} , 
+            {"input" : "rest([1, 2, 3])" , "expected" : [2, 3]} , 
+            {"input" : "rest([])" , "expected" : []} , 
+            {"input" : "rest(1)" , "expected" : "argument to `rest` must be ARRAY, got INTEGER"} , 
+            {"input" : "push([], 1)" , "expected" : [1]} , 
+            {"input" : "push(1, 1)" , "expected" : "argument to `push` must be ARRAY, got INTEGER"} , 
+            ]
         for tt in tests:
             evaluated = testEval(tt["input"])
+            #print(evaluated.inspect() , type(evaluated) , evaluated.type())
             if isinstance(tt["expected"] , int):
                 self.assertTrue(testIntegerObject(evaluated , tt["expected"]))
             elif isinstance(tt["expected"] , str):
@@ -277,7 +277,7 @@ class EvaluatorTest(unittest.TestCase):
                 self.assertEqual(len(evaluated.elements) , len(tt["expected"]))
                 for i in range(len(tt["expected"])):
                     self.assertTrue(testIntegerObject(evaluated.elements[i] , tt["expected"][i]))
-    '''
+    
     def testArrayLiterals(self):
         input = "[1, 2 * 2, 3 + 3]"
         evaluated = testEval(input)
@@ -327,7 +327,7 @@ class EvaluatorTest(unittest.TestCase):
                 self.assertTrue(testIntegerObject(evaluated , tt["expected"]))
             else:
                 self.assertTrue(evaluated.inspect() is None)
-    '''
+    
 
 if __name__ == "__main__":
     unittest.main()

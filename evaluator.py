@@ -9,6 +9,75 @@ NULL = Null()
 TRUE = Boolean(True)
 FALSE = Boolean(False)
 
+builtins = {}
+x = Builtin(fn=lambda args: (
+    newError(f"wrong number of arguments. got={str(len(args))}, want=1") 
+    if len(args) != 1 else (
+        Integer(len(args[0].elements)) if isinstance(args[0], Array) else (
+            Integer(len(args[0].value)) if isinstance(args[0], String) else
+            newError("argument to `len` not supported, got ", args[0].type())
+        )
+    )
+))
+builtins["len"] = x
+
+x = Builtin(fn=lambda args: (
+    [print(arg.inspect()) for arg in args],
+    NULL
+)[1])
+builtins["print"] = x
+
+x = Builtin(
+    fn=lambda args: (
+        newError(f"wrong number of arguments. got={len(args)}, want=1")
+        if len(args) != 1 else
+        newError("argument to `first` must be ARRAY, got ", args[0].type())
+        if args[0].type() != "ARRAY" else
+        args[0].elements[0]
+        if len(args[0].elements) > 0 else
+        NULL
+    )
+)
+builtins["first"] = x
+
+x = Builtin(
+    fn=lambda args: (
+        newError(f"wrong number of arguments. got={len(args)}, want=1")
+        if len(args) != 1 else
+        newError("argument to `last` must be ARRAY, got ", args[0].type())
+        if args[0].type() != "ARRAY" else
+        args[0].elements[-1]
+        if len(args[0].elements) > 0 else
+        NULL
+    )
+)
+builtins["last"] = x
+
+x = Builtin(
+    fn=lambda args: (
+        newError(f"wrong number of arguments. got={len(args)}, want=1")
+        if len(args) != 1 else
+        newError("argument to `rest` must be ARRAY, got ", args[0].type())
+        if not isinstance(args[0], Array) else
+        Array(args[0].elements[1:])  
+        if len(args[0].elements) > 0 else
+        Array([])
+    )
+)
+builtins["rest"] = x
+
+x = Builtin(
+    fn=lambda args: (
+        newError(f"wrong number of arguments. got={len(args)}, want=2")
+        if len(args) != 2 else
+        newError("argument to `push` must be ARRAY, got ", args[0].type())
+        if not isinstance(args[0], Array) else
+        Array(args[0].elements + [args[1]])  # Create a new array by appending the second argument
+    )
+)
+builtins["push"] = x
+
+
 def Eval (node : Node, env : Environment) -> Object:
 
     #print(node.String() , type(node) , node)
@@ -214,8 +283,7 @@ def evalIfExpression(ie : IfExpression, env : Environment):
 def evalIdentifier(node : Identifier, env : Environment):
     val = env.get(node.Value)
     if val == None:
-        return Error(f"identifier not found: {node.Value}")
-
+        return builtins.get(node.Value , newError(f"identifier not found: {node.Value}"))
     return val
 
 def isTruthy(obj : Object):
@@ -252,6 +320,8 @@ def evalExpressions(exps : list[Expression], env : Environment):
 
 def applyFunction(fn : Object, args : list[Object]):
     if not isinstance(fn, Function):
+        if isinstance(fn , Builtin):
+            return fn.func(args)
         return newError(f"not a function: {fn.type()}")
     extended_env = extendFunctionEnv(fn, args)
     evaluated = Eval(fn.body, extended_env)

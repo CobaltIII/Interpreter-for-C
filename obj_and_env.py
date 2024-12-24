@@ -155,8 +155,8 @@ class String(Object , Hashable):
         return x
 
 class Builtin(Object):
-    def __init__(self, func : BuiltinFunction):
-        self.func = func
+    def __init__(self, fn : BuiltinFunction):
+        self.func = fn
     
     def type(self) -> str:
         return ObjectType.BUILTIN_OBJ

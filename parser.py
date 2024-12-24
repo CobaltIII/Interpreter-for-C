@@ -283,7 +283,6 @@ class HashLiteral(Expression):
         pairs = [f"{k.String()}: {v.String()}" for k, v in self.Pairs.items()]
         return f"{{{', '.join(pairs)}}}"
 
-
 '''
 class TestStringMethod(unittest.TestCase):
     def test_string(self):
@@ -306,7 +305,6 @@ class TestStringMethod(unittest.TestCase):
         self.assertEqual(program.String(), expected, f"program.String() wrong. got={program.String()}")
 
 '''
-
 
 ########################################################################################################################################################
 

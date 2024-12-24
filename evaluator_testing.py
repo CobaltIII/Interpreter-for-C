@@ -308,7 +308,6 @@ class EvaluatorTest(unittest.TestCase):
             else:
                 self.assertTrue(evaluated.inspect() is None)
     
-    
     def testHashIndexExpressions(self):
         tests = [
             {"input" : '{"foo": 5}["foo"]' , "expected" : 5} , 
@@ -328,6 +327,5 @@ class EvaluatorTest(unittest.TestCase):
             else:
                 self.assertTrue(evaluated.inspect() is None)
     
-
 if __name__ == "__main__":
     unittest.main()

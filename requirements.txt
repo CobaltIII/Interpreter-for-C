@@ -1,5 +1,3 @@
 streamlit
-numpy
-pandas
-seaborn
-matplotlib
+contextlib
+io
